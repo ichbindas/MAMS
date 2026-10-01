@@ -7,7 +7,7 @@ mams.check.sep <- function(obj) {
     "K", "J", "alpha", "power", "r", "r0", "p", "p0",
     "delta", "delta0", "sd", "ushape", "lshape", "ufix", "lfix",
     "nstart", "nstop", "sample.size", "Q", "type", "method",
-    "parallel", "print", "nsim", "H0", "obj", "par", "sim"
+    "parallel", "print", "nsim", "H0", "obj", "par", "sim", "binding"
   ), names(obj), 0)
   mc <- obj[c(m)]
 
@@ -128,6 +128,11 @@ mams.check.sep <- function(obj) {
       stop("The number of simulations should be equal to or greater than 1000.")
   }
 
+  if (!is.null(mc[["binding"]]) &&
+      (!is.logical(mc[["binding"]]) || length(mc[["binding"]]) != 1)) {
+    stop("'binding' must be a single logical value (TRUE or FALSE).")
+  }
+
   return(obj)
 }
 ###############################################################################
@@ -158,6 +163,7 @@ mams.fit.sep <- function(obj) {
   type <- obj$type
   H0 <- obj$H0
   print  <-  obj$print
+  binding <- ifelse(is.null(obj$binding), TRUE, obj$binding)
   ##### Initialize internal functions ##########################################
 
   # 'mesh' creates the points and respective weights to use in the outer
@@ -242,6 +248,10 @@ mams.fit.sep <- function(obj) {
       }
     } else {
       l <- c(C * lshape(J)[1:(J - 1)], u[J])
+    }
+    # non-binding: ignore futility when deriving the efficacy boundary
+    if (!binding && J > 1) {
+      l[1:(J - 1)] <- -20
     }
     mmp <- mesh((1:Q - 0.5) / Q * 12 - 6, J, rep(12 / Q, Q))
     evs <- apply(mmp$X, 1, prodsum,
@@ -443,7 +453,7 @@ if (is.null(obj$p)) {
   res$u <- u
   res$n <- n
   ## allocation ratios
-
+  res$binding <- binding
 
 h <- min(obj$r0) # check that here we are not using r0[1]
 r_norm <- obj$r / h
@@ -522,6 +532,8 @@ res  <- list()
 if (!is.null(deltav) | !is.null(pv)) {
   attr(res, "altered") <- "mams.sim"
 }
+
+  binding <- ifelse(is.null(obj$binding), TRUE, obj$binding)
 
   defaults <- list(
     nsim = 50000,
@@ -766,7 +778,7 @@ nMat  <- if (length(par$nMat) == 0) {
         # ss        <- sum((n*Rdiff[j, ])[remaining]) + n*r0diff[j] + ss
 
         eff <- (min(zks[j, remaining]) > u[j])
-        fut <- (max(zks[j, remaining]) < l[j])
+        fut <- if (binding) (max(zks[j, remaining]) < l[j]) else 0
         if (any(zks[j, remaining] > u[j])) {
           emat[j, which((zks[j, ] > u[j]) & remaining)] <- 1
         }
@@ -779,7 +791,11 @@ nMat  <- if (length(par$nMat) == 0) {
         all.remaining[j, ] <- remaining
         control[j] <- TRUE
 
-        remaining <- ((zks[j, ] > l[j]) & (zks[j, ] < u[j]) & remaining)
+        if (binding) {
+          remaining <- ((zks[j, ] > l[j]) & (zks[j, ] < u[j]) & remaining)
+        } else {
+          remaining <- ((zks[j, ] < u[j]) & remaining)
+        }
         if (all(remaining == FALSE)) {
           break
         }
@@ -1049,7 +1065,8 @@ mams.print.sep <- function(x,
   if (!isTRUE(x$sample.size)) {
   res <- matrix(NA, nrow = 2, ncol = x$J)
   colnames(res) <- paste("Stage", 1:x$J)
-  rownames(res) <- c("Upper bound:", "Lower bound:")
+  lower_label <- if (isFALSE(x$binding)) "Lower bound: (non-binding)" else "Lower bound: (binding)"
+  rownames(res) <- c("Upper bound:", lower_label)
   res[1, ] <- round(x$u, digits)
   res[2, ] <- round(x$l, digits)
 
@@ -1080,7 +1097,8 @@ mams.print.sep <- function(x,
   }
   res <- matrix(NA, 2, x$J)
   colnames(res) <- paste("Stage", 1:x$J)
-  rownames(res) <- c("Upper bound:", "Lower bound:")
+  lower_label <- if (isFALSE(x$binding)) "Lower bound: (non-binding)" else "Lower bound: (binding)"
+  rownames(res) <- c("Upper bound:", lower_label)
   res[1, ] <- round(x$u, digits)
   res[2, ] <- round(x$l, digits)
   print(res)
@@ -1205,11 +1223,12 @@ cli_li("Assumed effect sizes per treatment arm:")
 
     # limits
     cli_h2(col_blue("Limits"))
+    lower_label <- if (isFALSE(object$binding)) "Lower bounds: (non-binding)" else "Lower bounds: (binding)"
     out <- as.data.frame(matrix(round(c(object$u, object$l), digits),
       nrow = 2,
       byrow = TRUE,
       dimnames = list(
-        c("Upper bounds", "Lower bounds"),
+        c("Upper bounds", lower_label),
         paste("Stage", 1:object$J)
       )
     ))
@@ -1570,7 +1589,8 @@ cli_li("Assumed effect sizes per treatment arm:")
 
     res <- matrix(NA, nrow = 2, ncol = object$J)
     colnames(res) <- paste("Stage", 1:object$J)
-    rownames(res) <- c("Upper bound:", "Lower bound:")
+    lower_label <- if (isFALSE(object$binding)) "Lower bound: (non-binding)" else "Lower bound: (binding)"
+    rownames(res) <- c("Upper bound:", lower_label)
     res[1, ] <- round(object$u, digits)
     res[2, ] <- round(object$l, digits)
 

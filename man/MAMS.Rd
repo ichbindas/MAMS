@@ -29,7 +29,7 @@ mams(obj = NULL, K=NULL, J=NULL, alpha=NULL, power=NULL, r=NULL,
                      sd=NULL,ushape=NULL, lshape=NULL, ufix=NULL, lfix=NULL, 
                      nstart=NULL, nstop=NULL, sample.size=NULL, Q=NULL,
                      type=NULL, parallel=NULL, print=NULL, nsim=NULL, 
-                     H0=NULL, method=NULL)
+                     H0=NULL, method=NULL, binding=NULL)
 }
 \arguments{
 \item{obj}{object of class \code{MAMS}}
@@ -109,6 +109,11 @@ effect sizes set to 0.}
 \item{method}{Type of the desired design: \code{simultaneous}(default) for
 simultaneous stopping rules, \code{sep} for separate stopping, and \code{dtl}
 for drop-the-losers design.}
+
+\item{binding}{if TRUE (default), the futility boundary is binding. If FALSE,
+it is non-binding: the efficacy boundary is derived ignoring futility, the
+sample size assumes futility is applied, and simulations do not drop arms
+for futility. Only used for \code{simultaneous} and \code{sep}.}
 }
 \value{
 An object of the class MAMS containing the following components:

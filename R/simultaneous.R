@@ -7,7 +7,7 @@ mams.check.simultaneous <- function(obj) {
     "K", "J", "alpha", "power", "r", "r0", "p", "p0",
     "delta", "delta0", "sd", "ushape", "lshape", "ufix", "lfix",
     "nstart", "nstop", "sample.size", "Q", "type", "method",
-    "parallel", "print", "nsim", "H0", "obj", "par", "sim"
+    "parallel", "print", "nsim", "H0", "obj", "par", "sim", "binding"
   ), names(obj), 0)
   mc <- obj[c(m)]
   # sizes
@@ -175,6 +175,10 @@ if (is.null(mc[["r"]])) {
 
       stop("The number of simulations should be equal to or greater than 1000.")
   }
+  if (!is.null(mc[["binding"]]) &&
+      (!is.logical(mc[["binding"]]) || length(mc[["binding"]]) != 1)) {
+    stop("'binding' must be a single logical value (TRUE or FALSE).")
+  }
   # out
   class(mc) <- "MAMS"
   attr(mc, "mc") <- attr(obj, "mc")
@@ -269,7 +273,7 @@ mams.prodsum3.simultaneous <- function(x, l, u, r, r0, r0diff, J, K, delta,
 mams.typeI.simultaneous <- function(C, alpha, r, r0, r0diff, J, K, Sigma,
                                         mmp, ushape, lshape, lfix = NULL,
                                         ufix = NULL, parallel = parallel,
-                                        print = print) {
+                                        print = print, binding = TRUE) {
   ########################################################################
   ## the form of the boundary constraints are determined as functions of C.
   ########################################################################
@@ -303,6 +307,11 @@ mams.typeI.simultaneous <- function(C, alpha, r, r0, r0diff, J, K, Sigma,
     }
   } else {
     l <- c(C * lshape(J)[1:(J - 1)], u[J])
+  }
+
+  # non-binding: ignore futility when deriving the efficacy boundary
+  if (!binding && J > 1) {
+    l[1:(J - 1)] <- -20
   }
 
   if (parallel) {
@@ -389,6 +398,7 @@ mams.fit.simultaneous <- function(obj) {
     message("\n", appendLF = FALSE)
   }
 
+  binding <- ifelse(is.null(obj$binding), TRUE, obj$binding)
   parallel  <- ifelse(is.null(obj$parallel), FALSE, obj$parallel)
 
   ##############################################################################
@@ -477,7 +487,8 @@ for (j in 1:1) {
     ufix = obj$ufix,
     parallel = parallel,
     print = obj$print,
-    tol = 0.001
+    tol = 0.001,
+    binding = binding
   )$root, silent = TRUE)
 
   if (is.null(uJ)) {
@@ -531,7 +542,7 @@ for (j in 1:1) {
     r0diff = r0diff[1], J = 1, K = obj$K, Sigma = Sigma,
     mmp = mmp_j[[1]], ushape = "fixed", lshape = "fixed",
     lfix = NULL, ufix = NULL, parallel = parallel,
-    print = FALSE
+    print = FALSE, binding = binding
   )
   if (obj$J > 1) {
     for (j in 2:obj$J) {
@@ -541,7 +552,7 @@ for (j in 1:1) {
         Sigma = Sigma, mmp = mmp_j[[j]], ushape = "fixed",
         lshape = "fixed", lfix = l[1:(j - 1)],
         ufix = u[1:(j - 1)], parallel = parallel,
-        print = FALSE
+        print = FALSE, binding = binding
       )
     }
   }
@@ -673,6 +684,7 @@ nstop <- if (is.null(obj$nstop)) iterations else obj$nstop
   res$u <- u
   res$n <- n
   ## allocation ratios
+  res$binding <- binding
 
   h <- min(obj$r0) # check that here we are not using r0[1]
   r_norm <- obj$r / h
@@ -762,6 +774,7 @@ res  <- list()
 if (!is.null(deltav) | !is.null(pv)) {
   attr(res, "altered") <- "mams.sim"
 }
+  binding <- ifelse(is.null(obj$binding), TRUE, obj$binding)
 
   defaults <- list(
     nsim = 50000,
@@ -1004,8 +1017,11 @@ nMat  <- if (length(par$nMat) == 0) {
       nmat[j, c(TRUE, remaining)] <- c(n * r0diff[j], n * Rdiff[j, remaining])
       emat[j, remaining] <- ((zks[j, remaining]) > u[j])
       fmat[j, remaining] <- ((zks[j, remaining]) < l[j])
-      remaining <- (zks[j, ] > l[j]) & remaining
-      if (any(emat[j, ], na.rm = TRUE) | all(fmat[j, ], na.rm = TRUE)) {
+      if (binding) {
+        remaining <- (zks[j, ] > l[j]) & remaining
+      }
+      # efficacy stop always applies; the all-futile stop only under binding
+      if (any(emat[j, ], na.rm = TRUE) | (binding && all(fmat[j, ], na.rm = TRUE))) {
         break
       }
     }
@@ -1273,7 +1289,8 @@ mams.print.simultaneous <- function(x, digits, ...) {
 if (!isTRUE(x$sample.size)) {
   res <- matrix(NA, nrow = 2, ncol = x$J)
   colnames(res) <- paste("Stage", 1:x$J)
-  rownames(res) <- c("Upper bound:", "Lower bound:")
+  lower_label <- if (isFALSE(x$binding)) "Lower bound: (non-binding)" else "Lower bound: (binding)"
+  rownames(res) <- c("Upper bound:", lower_label)
   res[1, ] <- round(x$u, digits)
   res[2, ] <- round(x$l, digits)
 
@@ -1308,7 +1325,8 @@ if (!isTRUE(x$sample.size)) {
 
   res <- matrix(NA, nrow = 2, ncol = x$J)
   colnames(res) <- paste("Stage", 1:x$J)
-  rownames(res) <- c("Upper bound:", "Lower bound:")
+  lower_label <- if (isFALSE(x$binding)) "Lower bound: (non-binding)" else "Lower bound:"
+  rownames(res) <- c("Upper bound:", lower_label)
   res[1, ] <- round(x$u, digits)
   res[2, ] <- round(x$l, digits)
 
@@ -1441,11 +1459,12 @@ if (is.null(object$sim)) {
 
     # limits
     cli_h2(col_blue("Limits"))
+    lower_label <- if (isFALSE(object$binding)) "Lower bound: (non-binding)" else "Lower bound: (binding)"
     out <- as.data.frame(matrix(round(c(object$u, object$l), digits),
       nrow = 2,
       byrow = TRUE,
       dimnames = list(
-        c("Upper bounds", "Lower bounds"),
+        c("Upper bounds", lower_label),
         paste("Stage", 1:object$J)
       )
     ))
@@ -1805,8 +1824,9 @@ if (is.null(object$sim)) {
     }
 
     res <- matrix(NA, nrow = 2, ncol = object$J)
+    lower_label <- if (isFALSE(object$binding)) "Lower bound: (non-binding)" else "Lower bound: (binding)"
     colnames(res) <- paste("Stage", 1:object$J)
-    rownames(res) <- c("Upper bound:", "Lower bound:")
+    rownames(res) <- c("Upper bound:", lower_label)
     res[1, ] <- round(object$u, digits)
     res[2, ] <- round(object$l, digits)
 

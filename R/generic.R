@@ -23,7 +23,7 @@ MAMSNews <- function() {
 #'                      sd=NULL,ushape=NULL, lshape=NULL, ufix=NULL, lfix=NULL, 
 #'                      nstart=NULL, nstop=NULL, sample.size=NULL, Q=NULL,
 #'                      type=NULL, parallel=NULL, print=NULL, nsim=NULL, 
-#'                      H0=NULL, method=NULL)
+#'                      H0=NULL, method=NULL, binding=NULL)
 #' @param obj object of class `MAMS`
 #' @param K Number of experimental treatments (default=4).
 #' @param J Number of stages (default=2).
@@ -76,6 +76,10 @@ MAMSNews <- function() {
 #' @param method Type of the desired design: `simultaneous`(default) for 
 #' simultaneous stopping rules, `sep` for separate stopping, and `dtl`
 #' for drop-the-losers design.
+#' @param binding if TRUE (default), the futility boundary is binding. If FALSE,
+#' it is non-binding: the efficacy boundary is derived ignoring futility, the
+#' sample size assumes futility is applied, and simulations do not drop arms
+#' for futility. Only used for `simultaneous` and `sep`.
 #' @returns An object of the class MAMS containing the following components:
 #' \item{l}{Lower boundary.}
 #' \item{u}{Upper boundary.}
@@ -258,7 +262,7 @@ mams <- function(
   ushape = NULL, lshape = NULL, ufix = NULL, lfix = NULL, 
   nstart = NULL, nstop = NULL, sample.size = NULL, Q = NULL,
   type = NULL, parallel = NULL, print = NULL, nsim = NULL, 
-  H0 = NULL, method = NULL) {
+  H0 = NULL, method = NULL, binding = NULL) {
 
 
   if (!is.null(obj)) {
@@ -281,7 +285,7 @@ mams <- function(
     delta=NULL, delta0=NULL, sd=NULL, ushape="obf", lshape="fixed",
     ufix=NULL, lfix=0, nstart=1, nstop=NULL, sample.size=TRUE, Q=20,
     type="normal", parallel=TRUE, print=TRUE, nsim=50000, H0=TRUE, 
-    method="simultaneous"
+    method="simultaneous", binding = TRUE
   )
  
   # Convert the provided arguments into a list
@@ -290,7 +294,7 @@ mams <- function(
     delta=delta, delta0=delta0, sd=sd, ushape=ushape, lshape=lshape, 
     ufix=ufix, lfix=lfix, nstart=nstart, nstop=nstop, sample.size=sample.size, 
     Q=Q, type=type, parallel=parallel, print=print, nsim=nsim, H0=H0, 
-    method=method
+    method=method, binding = binding
   )
     user_defined <- Filter(Negate(is.null), user_defined)
 
@@ -678,7 +682,7 @@ plot.MAMS <- function(x, ask=TRUE, which=1:2, new = TRUE, col=NULL,
 pack_object <- function(obj) {
   # Define the top-level keys that should stay at the top level
   top_level_keys <- c("l", "u", "n", "N", "K", "J", "alpha", "alpha.star", 
-                      "power", "rMat", "sim")
+                      "power", "rMat", "sim", "binding")
   
   input <- list()
   packed_obj <- list()

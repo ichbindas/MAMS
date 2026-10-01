@@ -18,6 +18,15 @@ Question or suggestions about the package can be sent to
    thomas.jaki@pm.me
 
 --------------------CHANGE LOG--------------------------------------------
+Development version
+
+  o  Added argument 'binding' to mams() for method = "simultaneous"
+      and method = "sep". With binding = FALSE the futility boundary is
+      non-binding: the efficacy boundary is derived ignoring futility,
+      the sample size still assumes futility is applied, and simulated
+      trials never drop arms or stop for futility.
+
+--------------------CHANGE LOG--------------------------------------------
 Version 3.0.3
 
   o  Fixed DTL cumulative sample size calculation in summary function
