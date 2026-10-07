@@ -1,0 +1,20 @@
+% Map Unicode math/special glyphs to LaTeX so they render under tectonic/XeTeX
+% (the default Latin Modern font lacks several of these).
+\usepackage{newunicodechar}
+\newunicodechar{±}{\ensuremath{\pm}}
+\newunicodechar{·}{\textperiodcentered}
+\newunicodechar{×}{\ensuremath{\times}}
+\newunicodechar{Δ}{\ensuremath{\Delta}}
+\newunicodechar{–}{\textendash}
+\newunicodechar{—}{\textemdash}
+\newunicodechar{→}{\ensuremath{\rightarrow}}
+\newunicodechar{∈}{\ensuremath{\in}}
+\newunicodechar{−}{\ensuremath{-}}
+\newunicodechar{≈}{\ensuremath{\approx}}
+\newunicodechar{≤}{\ensuremath{\leq}}
+\newunicodechar{≥}{\ensuremath{\geq}}
+
+% Tighten the glue pandoc's longtables add above/below, so a table is less
+% likely to overflow a page boundary and strand a repeated header.
+\setlength{\LTpre}{6pt}
+\setlength{\LTpost}{6pt}
